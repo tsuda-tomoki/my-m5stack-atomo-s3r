@@ -15,65 +15,205 @@
  */
 
 #include <M5Unified.h>
-// 電源が入ったあとに {} 内が１回実行される
 
 int eyeOffsetX = 0;
 
+// まばたき
 bool blinking = false;
 unsigned long blinkStart = 0;
 unsigned long lastBlink = 0;
 
-String expression = "normal";
+// 表情
+enum Expression {
+  NORMAL,
+  HAPPY,
+  SLEEPY
+};
 
-// 必須
-// 電源ONときに一回だけ必ず実行される
-void setup() {
-  auto cfg = M5.config(); // M5Stack初期設定用の構造体を代入
-  M5.begin(cfg); // M5デバイスの初期化
+Expression face = NORMAL;
 
-  M5.Display.setTextColor(WHITE); // テキストカラーを白に設定
+unsigned long lastAction = 0;
+
+// =====================================
+// カプセル型の目
+// =====================================
+void drawEye(int x, int y, int w, int h) {
+
+  M5.Display.fillRoundRect(
+    x - w / 2,
+    y - h / 2,
+    w,
+    h,
+    w / 2,
+    TFT_CYAN
+  );
 }
 
-// 電源がONになっているときに繰り返し実行される
-// 必須
-void loop() {
-  M5.update(); // ボタン操作を読み込む ※ ボタン処理のときは必須
+// =====================================
+// 顔描画
+// =====================================
+void drawFace() {
 
-  unsigned long now = millis(); // プログラムがスタートしてからの時間 (ミリ秒)
+  M5.Display.fillScreen(TFT_BLACK);
 
-  // まばたき開始
-  if (!blinking && now - lastBlink > 4000) { // blinking = true かつ 最後にまばたきした時間が4sより上
-    blinking = true;
-    blinkStart = now;
-    lastBlink = now;
+  // -------------------------
+  // 目を少し下へ（口に近づける）
+  // -------------------------
+  int eyeY = 52;
+
+  // 目の間を広めに
+  int leftEyeX  = 32 + eyeOffsetX;
+  int rightEyeX = 96 + eyeOffsetX;
+
+  // -------------------------
+  // まばたき
+  // -------------------------
+  if (blinking) {
+
+    M5.Display.fillRoundRect(
+      leftEyeX - 10,
+      eyeY,
+      20,
+      4,
+      2,
+      TFT_CYAN
+    );
+
+    M5.Display.fillRoundRect(
+      rightEyeX - 10,
+      eyeY,
+      20,
+      4,
+      2,
+      TFT_CYAN
+    );
+  }
+  else {
+
+    switch (face) {
+
+      // 通常
+      case NORMAL:
+
+        drawEye(leftEyeX, eyeY, 20, 36);
+        drawEye(rightEyeX, eyeY, 20, 36);
+
+        break;
+
+      // 喜び
+      case HAPPY:
+
+        drawEye(leftEyeX, eyeY, 20, 28);
+        drawEye(rightEyeX, eyeY, 20, 28);
+
+        break;
+
+      // 眠い
+      case SLEEPY:
+
+        drawEye(leftEyeX, eyeY, 24, 10);
+        drawEye(rightEyeX, eyeY, 24, 10);
+
+        break;
+    }
   }
 
+  // -------------------------
+  // 口
+  // 長くしてロボ感アップ
+  // -------------------------
+  switch (face) {
+
+    case NORMAL:
+
+      M5.Display.fillRoundRect(
+        48,
+        92,
+        32,
+        5,
+        2,
+        TFT_CYAN
+      );
+
+      break;
+
+    case HAPPY:
+
+      M5.Display.fillRoundRect(
+        44,
+        92,
+        40,
+        7,
+        3,
+        TFT_CYAN
+      );
+
+      break;
+
+    case SLEEPY:
+
+      M5.Display.fillRoundRect(
+        50,
+        94,
+        28,
+        4,
+        2,
+        TFT_CYAN
+      );
+
+      break;
+  }
+}
+
+// =====================================
+// setup
+// =====================================
+void setup() {
+
+  auto cfg = M5.config();
+
+  M5.begin(cfg);
+
+  M5.Display.setRotation(0);
+
+  lastAction = millis();
+}
+
+// =====================================
+// loop
+// =====================================
+void loop() {
+
+  M5.update();
+
+  unsigned long now = millis();
+
+  // -------------------------
+  // まばたき開始
+  // -------------------------
+  if (!blinking &&
+      now - lastBlink > 4000) {
+
+    blinking = true;
+
+    blinkStart = now;
+
+    lastBlink = now;
+
+    // 少し視線移動
+    eyeOffsetX = random(-3, 4);
+  }
+
+  // -------------------------
   // まばたき終了
-  if (blinking && now - blinkStart > 150) {
+  // -------------------------
+  if (blinking &&
+      now - blinkStart > 120) {
+
     blinking = false;
   }
 
   drawFace();
 
-  delay(33); // 33 ミリ秒停止
-}
-
-// 顔の描画処理
-void drawFace() {
-  M5.Display.fillScreen(BLACK); // スクリーンカラーを黒に設定
-
-  int eyeY = 50;
-  int leftEyeX = 40 + eyeOffsetX;
-  int rightEyeX = 88 + eyeOffsetX;
-
-  // まばたき中
-  if (blinking) {
-    M5.Display.fillRect(leftEyeX - 10, eyeY, 20, 3, WHITE); // 四角の描写
-    M5.Display.fillRect(rightEyeX - 10, eyeY, 20, 3, WHITE);
-  }
-  else {
-    // 通常目
-    M5.Display.fillCircle(leftEyeX, eyeY, 10, WHITE); // 塗りつぶされた円を描写する, x軸, y軸, 半径, 色
-    M5.Display.fillCircle(rightEyeX, eyeY, 10, WHITE);
-  }
+  delay(33);
 }
